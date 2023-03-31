@@ -1,67 +1,102 @@
 import random
 
-# Define the problem
-cities = ['A', 'B', 'C', 'D', 'E']
-distances = {
-    'AB': 2, 'AC': 3, 'AD': 1, 'AE': 4,
-    'BC': 4, 'BD': 2, 'BE': 3,
-    'CD': 5, 'CE': 1,
-    'DE': 4
+# Define the cities and their coordinates
+cities = {
+    'A': (0, 0),
+    'B': (1, 3),
+    'C': (2, 1),
+    'D': (5, 0),
+    'E': (6, 3),
+    'F': (7, 1),
+    'G': (10, 0),
+    'H': (11, 3),
+    'I': (12, 1),
+    'J': (15, 0)
 }
 
-# Generate initial population
-def generate_chromosome():
-    return random.sample(cities, len(cities))
-
-population_size = 100
-population = [generate_chromosome() for _ in range(population_size)]
+# Define the genetic algorithm parameters
+POPULATION_SIZE = 20
+NUM_GENERATIONS = 1000
+MUTATION_RATE = 0.1
 
 # Define the fitness function
-def calculate_distance(chromosome):
+def get_fitness(route):
     distance = 0
-    for i in range(len(chromosome) - 1):
-        distance += distances[chromosome[i] + chromosome[i+1]]
-    distance += distances[chromosome[-1] + chromosome[0]]
-    return distance
+    for i in range(len(route)):
+        from_city = cities[route[i]]
+        to_city = cities[route[(i + 1) % len(route)]]
+        distance += ((from_city[0] - to_city[0]) ** 2 + (from_city[1] - to_city[1]) ** 2) ** 0.5
+    return 1 / distance
 
-def fitness(chromosome):
-    return 1/calculate_distance(chromosome)
+# Define the create initial population function
+def create_population():
+    population = []
+    for i in range(POPULATION_SIZE):
+        route = list(cities.keys())
+        random.shuffle(route)
+        population.append(route)
+    return population
 
-# Implement the genetic algorithm
-def selection(population):
-    population = sorted(population, key=fitness, reverse=True)
-    return population[:int(len(population)/2)]
+# Define the breed function
+def breed(parent1, parent2):
+    child = [''] * len(parent1)
+    gene1 = random.randint(0, len(parent1) - 1)
+    gene2 = random.randint(0, len(parent1) - 1)
+    start_gene = min(gene1, gene2)
+    end_gene = max(gene1, gene2)
+    for i in range(start_gene, end_gene + 1):
+        child[i] = parent1[i]
+    for i in range(len(parent2)):
+        if parent2[i] not in child:
+            for j in range(len(child)):
+                if child[j] == '':
+                    child[j] = parent2[i]
+                    break
+    return child
 
-def crossover(parent1, parent2):
-    crossover_point = random.randint(1, len(cities) - 1)
-    offspring1 = parent1[:crossover_point] + [gene for gene in parent2 if gene not in parent1[:crossover_point]]
-    offspring2 = parent2[:crossover_point] + [gene for gene in parent1 if gene not in parent2[:crossover_point]]
-    return offspring1, offspring2
+# Define the mutate function
+def mutate(route):
+    if random.random() < MUTATION_RATE:
+        gene1 = random.randint(0, len(route) - 1)
+        gene2 = random.randint(0, len(route) - 1)
+        route[gene1], route[gene2] = route[gene2], route[gene1]
+    return route
 
-def mutation(chromosome):
-    mutation_point1, mutation_point2 = random.sample(range(len(cities)), 2)
-    chromosome[mutation_point1], chromosome[mutation_point2] = chromosome[mutation_point2], chromosome[mutation_point1]
-    return chromosome
+# Define the evolve function
+def evolve(population):
+    # Select the top 2 routes
+    sorted_population = sorted(population, key=get_fitness, reverse=True)
+    parents = sorted_population[:2]
 
-def generate_new_population(population):
-    new_population = []
-    for i in range(len(population)):
-        parent1, parent2 = random.sample(population, 2)
-        offspring1, offspring2 = crossover(parent1, parent2)
-        offspring1 = mutation(offspring1)
-        offspring2 = mutation(offspring2)
-        new_population.append(offspring1)
-        new_population.append(offspring2)
-    return new_population
+    # Breed and mutate to create new routes
+    offspring = [parents[0], parents[1]]
+    while len(offspring) < POPULATION_SIZE:
+        child = breed(parents[0], parents[1])
+        child = mutate(child)
+        offspring.append(child)
 
-# Iterate the genetic algorithm
-num_generations = 1000
-for i in range(num_generations):
-    population = selection(population)
-    population = generate_new_population(population)
+    return offspring
 
-# Print the best solution
-best_chromosome = max(population, key=fitness)
-print(best_chromosome)
-print(calculate_distance(best_chromosome))
+# Define the main function
+def main():
+    # Create the initial population
+    population = create_population()
 
+    # Evolve the population for a number of generations
+    for i in range(NUM_GENERATIONS):
+        population = evolve(population)
+
+    # Calculate the fitness of each individual in the final population
+    fitness_scores = []
+    for individual in population:
+        fitness_scores.append(get_fitness(individual))
+
+    # Sort the population by their fitness
+    sorted_population = [x for _, x in sorted(zip(fitness_scores, population), reverse=True)]
+
+    # Print the best route
+    best_route = sorted_population[0]
+    print("Best route:", best_route)
+
+if __name__ == '__main__':
+    main()
